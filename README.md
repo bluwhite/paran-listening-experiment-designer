@@ -49,3 +49,12 @@ GitHub Pages에 올리는 **설계자 전용** 저장소입니다.
 ## 참고
 
 Excel 저장 기능은 브라우저에서 SheetJS CDN을 사용하므로 Excel 저장 시 인터넷 연결이 필요합니다. CSV 저장은 별도 라이브러리 없이 동작합니다.
+
+## v0.7 아이콘 적용
+
+- 브라우저 탭 favicon
+- 모바일 홈 화면용 Apple Touch Icon
+- PWA/Web App 아이콘 192px / 512px
+- 프로그램 상단 로고
+- `site.webmanifest` 포함
+
