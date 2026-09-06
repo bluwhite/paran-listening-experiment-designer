@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>파란 청취 실험 도구</title>
+  <link rel="stylesheet" href="common/styles.css">
+</head>
+<body class="designer-page">
+<main class="shell designer-shell">
+  <header class="app-header designer-header">
+    <div class="brand-block">
+      <div class="brand-mark" aria-hidden="true">◖</div>
+      <div>
+        <h1>파란 청취 실험 도구</h1>
+        <p class="muted">실험 설계 · 참가자 화면 테스트 · 결과 분석</p>
+      </div>
+    </div>
+    <span class="version-badge">v0.6</span>
+  </header>
+
+  <nav class="main-nav" aria-label="설계자 기능">
+    <button class="main-nav-btn active" data-main-view="designView">
+      <span class="nav-number">1</span><span>실험 설계</span>
+    </button>
+    <button class="main-nav-btn" data-main-view="testView">
+      <span class="nav-number">2</span><span>참가자 화면 테스트</span>
+    </button>
+    <button class="main-nav-btn" data-main-view="analysisView">
+      <span class="nav-number">3</span><span>결과 분석</span>
+    </button>
+  </nav>
+
+  <section id="designView" class="main-view">
+    <div class="view-heading">
+      <div><span class="section-kicker">DESIGN</span><h2>실험 설계</h2><p class="muted">프로젝트 폴더를 열고 문항, 선택지와 정답을 설정합니다.</p></div>
+      <button id="openProjectFolder" class="primary large-action">프로젝트 폴더 열기</button>
+    </div>
+    <input id="fallbackProjectFolder" type="file" webkitdirectory multiple class="hidden">
+
+    <section class="card project-card">
+      <div class="card-title-row">
+        <div><h3>프로젝트</h3><p class="muted small">음성파일과 프로젝트 설정을 같은 폴더에서 관리합니다.</p></div>
+        <span class="status-dot-label"><i></i>로컬 프로젝트</span>
+      </div>
+      <div class="privacy-note compact">
+        <span class="privacy-icon" aria-hidden="true">✓</span>
+        <div><b>선택한 음성과 JSON은 이 컴퓨터 안에서만 엽니다.</b><p>웹 서버로 전송하지 않습니다.</p></div>
+      </div>
+      <div id="projectStatus" class="notice hidden"></div>
+    </section>
+
+    <div class="designer-grid">
+      <section class="card">
+        <div class="section-number">01</div>
+        <h3>실험 기본정보</h3>
+        <div class="grid2 form-space">
+          <label class="field"><span>프로젝트 ID</span><input id="experimentId" type="text" value="experiment_01"></label>
+          <label class="field"><span>실험명</span><input id="title" type="text" value="음성 지각 실험"></label>
+        </div>
+        <label class="field form-space"><span>참가자 안내문</span><textarea id="instructions" rows="3">음성을 듣고 들리는 항목을 선택하세요.</textarea></label>
+        <div class="setting-row">
+          <label class="toggle-line"><input id="randomize" type="checkbox" checked><span>문제 순서 랜덤</span></label>
+          <label class="toggle-line"><input id="allowUnrecognized" type="checkbox" checked><span>인식 불가 사용</span></label>
+        </div>
+        <p class="inline-hint"><b>문제 다시 듣기</b>와 <b>하나 전으로 올라가기</b>는 항상 제공됩니다.</p>
+      </section>
+
+      <section class="card">
+        <div class="section-number">02</div>
+        <h3>기본 선택지 템플릿</h3>
+        <p class="muted small form-space">새 프로젝트에 처음 적용할 선택지입니다. 문항별로 나중에 다르게 바꿀 수 있습니다.</p>
+        <label class="field"><span>기본 선택지 <em>| 로 구분</em></span><input id="defaultOptions" type="text" value="가다 | 카다 | 까다"></label>
+        <button id="applyDefaultAll" class="secondary full-button form-space">기본 선택지를 전체 문항에 적용</button>
+      </section>
+    </div>
+
+    <section class="card items-card">
+      <div class="card-title-row">
+        <div><span class="section-number inline">03</span><h3>음성파일 · 문항별 선택지 · 정답</h3><p class="muted small">문항마다 선택지의 내용과 개수를 다르게 설정할 수 있습니다.</p></div>
+        <span class="project-badge" id="itemCountBadge">문항 목록</span>
+      </div>
+      <div class="table-wrap designer-table-wrap">
+        <table>
+          <thead><tr><th style="width:60px">번호</th><th>음성파일</th><th style="min-width:300px">이 문항의 선택지</th><th style="width:190px">정답</th><th style="width:90px">듣기</th></tr></thead>
+          <tbody id="itemsBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card save-card">
+      <div class="card-title-row">
+        <div><span class="section-number inline">04</span><h3>저장과 배포</h3><p class="muted small">설계자 원본과 참가자용 파일을 프로젝트 ID 기준으로 저장합니다.</p></div>
+      </div>
+      <div class="file-preview-row">
+        <div><span>설계자 원본</span><b id="masterFilename" class="project-badge">experiment_01_master.json</b></div>
+        <div><span>참가자용</span><b id="participantFilename" class="project-badge">experiment_01_experiment.json</b></div>
+      </div>
+      <div class="actions save-actions">
+        <button id="saveMaster" class="secondary">실험 저장</button>
+        <button id="saveParticipant" class="primary">참가자용 파일 만들기</button>
+      </div>
+      <p id="designCheck" class="notice small form-space">프로젝트 폴더와 문항별 선택지·정답을 설정한 뒤 테스트할 수 있습니다.</p>
+    </section>
+  </section>
+
+  <section id="testView" class="main-view hidden">
+    <div class="view-heading">
+      <div><span class="section-kicker">PREVIEW</span><h2>참가자 화면 테스트</h2><p class="muted">실제 참가자와 동일한 Runner로 실험 흐름을 확인합니다.</p></div>
+      <button id="testExperiment" class="primary large-action">▶ 테스트 시작</button>
+    </div>
+    <section id="testCard" class="card preview-card">
+      <div class="preview-topline"><span class="test-chip">TEST MODE</span><button id="closeTest" class="ghost">설계 화면으로 돌아가기</button></div>
+      <div id="testRunnerRoot" class="preview-runner-empty"></div>
+      <div id="testComplete" class="notice ok hidden form-space">테스트를 완료했습니다. 이 결과는 저장되지 않습니다.</div>
+    </section>
+  </section>
+
+  <section id="analysisView" class="main-view hidden">
+    <div class="view-heading">
+      <div><span class="section-kicker">ANALYSIS</span><h2>참가자 결과 분석</h2><p class="muted">여러 결과 JSON을 현재 프로젝트의 정답과 결합해 집계합니다.</p></div>
+      <button id="openResults" class="primary large-action">참가자 결과 파일 열기</button>
+    </div>
+    <input id="fallbackResults" type="file" accept="application/json,.json" multiple class="hidden">
+
+    <section class="card analysis-card">
+      <div class="privacy-note compact">
+        <span class="privacy-icon" aria-hidden="true">✓</span>
+        <div><b>결과 분석도 브라우저 안에서만 처리합니다.</b><p>참가자 JSON을 웹 서버로 보내지 않습니다.</p></div>
+      </div>
+      <div id="analysisStatus" class="notice hidden form-space"></div>
+      <div id="analysisArea" class="hidden">
+        <div class="kpi-grid">
+          <div class="kpi"><span>참가자</span><b id="kpiParticipants">0</b><small>명</small></div>
+          <div class="kpi"><span>문항</span><b id="kpiItems">0</b><small>개</small></div>
+          <div class="kpi"><span>전체 응답</span><b id="kpiResponses">0</b><small>건</small></div>
+          <div class="kpi accent"><span>전체 정답률</span><b id="kpiAccuracy">0%</b></div>
+        </div>
+        <div class="analysis-toolbar">
+          <div class="tabbar"><button class="tabbtn active" data-tab="participant">참가자별 통계</button><button class="tabbtn" data-tab="problem">문제별 통계</button><button class="tabbtn" data-tab="pronunciation">발음별 통계</button><button class="tabbtn" data-tab="raw">전체 원자료</button></div>
+          <div class="actions export-actions"><button id="exportXlsx" class="primary">Excel 저장</button><button id="exportCsv" class="secondary">CSV 저장</button></div>
+        </div>
+        <div id="participantTab" class="table-wrap result-table-wrap"></div>
+        <div id="problemTab" class="table-wrap result-table-wrap hidden"></div>
+        <div id="pronunciationTab" class="table-wrap result-table-wrap hidden"></div>
+        <div id="rawTab" class="table-wrap result-table-wrap hidden"></div>
+      </div>
+    </section>
+  </section>
+
+  <footer class="designer-footer">파란 청취 실험 도구 · 실험 설계자 v0.6</footer>
+</main>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script src="common/runner-core.js"></script>
+<script src="common/analysis-core.js"></script>
+<script src="designer.js"></script>
+</body>
+</html>
