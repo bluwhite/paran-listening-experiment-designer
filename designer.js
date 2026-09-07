@@ -1,6 +1,6 @@
 (() => {
 const $=id=>document.getElementById(id);
-let items=[],files=new Map(),basenames=new Map(),allProjectFiles=[],testRunner=null,projectDirHandle=null,currentAnalysis=null,providerRule={type:"prefix",count:3},selectedParticipantDetail="";
+let items=[],files=new Map(),basenames=new Map(),allProjectFiles=[],testRunner=null,projectDirHandle=null,currentAnalysis=null,providerRule={type:"prefix",count:3};
 function norm(s){return String(s||"").replaceAll("\\","/").replace(/^\/+/,"").toLowerCase()}
 function bn(s){const a=norm(s).split("/");return a[a.length-1]}
 function audioExt(name){return /\.(wav|mp3|m4a|ogg)$/i.test(name)}
@@ -85,44 +85,47 @@ function runAnalysis(entries){
 function tableHtml(headers,rows){return `<table class="result-table"><thead><tr>${headers.map(h=>`<th>${escapeHtml(h.label)}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr>${headers.map(h=>`<td>${escapeHtml(r[h.key]??"")}</td>`).join("")}</tr>`).join("")}</tbody></table>`}
 
 const participantSummaryHeaders=[{key:"participantId",label:"참가자"},{key:"totalQuestions",label:"전체 문항"},{key:"answered",label:"응답"},{key:"unanswered",label:"미응답"},{key:"correct",label:"정답"},{key:"incorrect",label:"오답"},{key:"unrecognized",label:"인식 불가"},{key:"accuracy",label:"정답률(%)"},{key:"avgResponseTimeMs",label:"평균 응답시간(ms)"},{key:"replayTotal",label:"다시 듣기"}];
-const participantItemHeaders=[{key:"trial",label:"제시순서"},{key:"itemId",label:"문항 ID"},{key:"audio",label:"음성파일"},{key:"answerLabel",label:"정답"},{key:"selectedLabel",label:"사용자 선택"},{key:"correct",label:"점수"},{key:"unrecognized",label:"인식 불가"},{key:"responseTimeMs",label:"응답시간(ms)"},{key:"replayCount",label:"다시 듣기"},{key:"revisionCount",label:"답 수정"}];
+const participantPronunciationHeaders=[{key:"participantId",label:"참가자"},{key:"pronunciation",label:"정답 발음"},{key:"itemCount",label:"문항 수"},{key:"audioCount",label:"음성파일 수"},{key:"responses",label:"응답"},{key:"unanswered",label:"미응답"},{key:"correct",label:"정답"},{key:"incorrect",label:"오답"},{key:"unrecognized",label:"인식 불가"},{key:"accuracy",label:"정답률(%)"},{key:"avgResponseTimeMs",label:"평균 응답시간(ms)"},{key:"replayTotal",label:"다시 듣기"},{key:"distribution",label:"응답 분포"}];
 const problemHeaders=[{key:"itemId",label:"문항 ID"},{key:"audio",label:"음성파일"},{key:"answerLabel",label:"정답"},{key:"participants",label:"참가자"},{key:"responses",label:"응답"},{key:"correct",label:"정답"},{key:"incorrect",label:"오답"},{key:"unrecognized",label:"인식 불가"},{key:"accuracy",label:"정답률(%)"},{key:"avgResponseTimeMs",label:"평균 응답시간(ms)"},{key:"replayTotal",label:"다시 듣기"},{key:"distribution",label:"응답 분포"}];
 const providerHeaders=[{key:"provider",label:"음성 제공자"},{key:"itemCount",label:"문항 수"},{key:"audioCount",label:"음성파일 수"},{key:"participants",label:"참가자"},{key:"responses",label:"응답"},{key:"correct",label:"정답"},{key:"incorrect",label:"오답"},{key:"unrecognized",label:"인식 불가"},{key:"accuracy",label:"정답률(%)"},{key:"avgResponseTimeMs",label:"평균 응답시간(ms)"},{key:"replayTotal",label:"다시 듣기"},{key:"distribution",label:"응답 분포"}];
+const providerPronunciationHeaders=[{key:"provider",label:"음성 제공자"},{key:"pronunciation",label:"정답 발음"},{key:"itemCount",label:"문항 수"},{key:"audioCount",label:"음성파일 수"},{key:"participants",label:"참가자"},{key:"responses",label:"응답"},{key:"unanswered",label:"미응답"},{key:"correct",label:"정답"},{key:"incorrect",label:"오답"},{key:"unrecognized",label:"인식 불가"},{key:"accuracy",label:"정답률(%)"},{key:"avgResponseTimeMs",label:"평균 응답시간(ms)"},{key:"replayTotal",label:"다시 듣기"},{key:"distribution",label:"응답 분포"}];
 
 function renderParticipantStats(rows){
- const previous=selectedParticipantDetail;
- const ids=rows.map(r=>String(r.participantId));
- selectedParticipantDetail=ids.includes(previous)?previous:(ids[0]||"");
+ const pronunciationRows=currentAnalysis?VoiceExperimentAnalysis.participantPronunciationStats(currentAnalysis.rawRows):[];
  $("participantTab").innerHTML=`
-  <div style="padding:4px 0 18px"><h3 style="margin:0 0 10px">참가자별 요약 통계</h3>${tableHtml(participantSummaryHeaders,rows)}</div>
+  <div style="padding:4px 0 22px">
+   <h3 style="margin:0 0 6px">참가자별 발음별 통계</h3>
+   <p class="muted small" style="margin:0 0 10px">모든 참가자를 한 표에 표시하며, 각 참가자의 응답을 정답 발음별로 묶어 집계합니다.</p>
+   ${tableHtml(participantPronunciationHeaders,pronunciationRows)}
+  </div>
   <div style="border-top:1px solid #e6ebf2;padding-top:22px">
-   <div class="toolbar" style="justify-content:space-between;margin-bottom:12px">
-    <div><h3 style="margin:0">참가자 문항별 응답 상세</h3><p class="muted small" style="margin:4px 0 0">참가자를 선택하면 그 참가자의 각 문항 응답을 확인할 수 있습니다.</p></div>
-    <label class="field" style="min-width:220px"><span>참가자 선택</span><select id="participantDetailSelect">${ids.map(id=>`<option value="${escapeHtml(id)}" ${id===selectedParticipantDetail?"selected":""}>${escapeHtml(id)}</option>`).join("")}</select></label>
-   </div>
-   <div id="participantDetailTable"></div>
+   <h3 style="margin:0 0 6px">참가자별 요약 통계</h3>
+   <p class="muted small" style="margin:0 0 10px">각 참가자의 전체 실험 결과를 요약합니다.</p>
+   ${tableHtml(participantSummaryHeaders,rows)}
   </div>`;
- const sel=$("participantDetailSelect");if(sel)sel.onchange=e=>{selectedParticipantDetail=e.target.value;renderParticipantDetail()};
- renderParticipantDetail();
-}
-function renderParticipantDetail(){
- const box=$("participantDetailTable");if(!box||!currentAnalysis)return;
- const rows=currentAnalysis.rawRows.filter(r=>String(r.participantId)===String(selectedParticipantDetail)).slice().sort((a,b)=>Number(a.trial||0)-Number(b.trial||0));
- box.innerHTML=tableHtml(participantItemHeaders,rows);
 }
 
 function renderProblemStats(rows){
  $("problemTab").innerHTML=`
   <div style="padding:4px 0 22px"><h3 style="margin:0 0 6px">음성 파일별 통계</h3><p class="muted small" style="margin:0 0 10px">각 음성 파일을 하나의 문제로 보고 집계합니다.</p>${tableHtml(problemHeaders,rows)}</div>
   <div style="border-top:1px solid #e6ebf2;padding-top:22px">
-   <h3 style="margin:0 0 6px">음성 제공자별 통계</h3>
-   <p class="muted small" style="margin:0 0 12px">음성파일명에서 제공자 ID를 추출해 같은 제공자의 음성을 묶어 집계합니다. 파일 확장자는 계산에서 제외합니다.</p>
+   <h3 style="margin:0 0 6px">음성 제공자 통계</h3>
+   <p class="muted small" style="margin:0 0 12px">음성파일명에서 제공자 ID를 추출해 같은 제공자의 음성을 묶습니다. 파일 확장자는 계산에서 제외합니다.</p>
    <div class="toolbar" style="gap:12px;align-items:end;margin-bottom:10px">
     <label class="field" style="min-width:260px"><span>제공자 인식 방식</span><select id="providerRuleType"><option value="prefix" ${providerRule.type==="prefix"?"selected":""}>앞에서 N글자 선택</option><option value="trimSuffix" ${providerRule.type==="trimSuffix"?"selected":""}>뒤에서 N글자 제외</option></select></label>
     <label class="field" style="width:140px"><span>글자 수 N</span><input id="providerRuleCount" type="number" min="0" step="1" value="${providerRule.count}"></label>
    </div>
-   <div id="providerRulePreview" class="notice small" style="margin-bottom:12px"></div>
-   <div id="providerStatsTable"></div>
+   <div id="providerRulePreview" class="notice small" style="margin-bottom:16px"></div>
+   <div>
+    <h4 style="margin:0 0 6px">음성 제공자별 발음 통계</h4>
+    <p class="muted small" style="margin:0 0 10px">각 음성 제공자의 결과를 정답 발음별로 다시 나누어 집계합니다.</p>
+    <div id="providerPronunciationStatsTable"></div>
+   </div>
+   <div style="border-top:1px solid #e6ebf2;margin-top:22px;padding-top:22px">
+    <h4 style="margin:0 0 6px">음성 제공자별 요약 통계</h4>
+    <p class="muted small" style="margin:0 0 10px">각 음성 제공자의 전체 응답을 하나로 합쳐 요약합니다.</p>
+    <div id="providerStatsTable"></div>
+   </div>
   </div>`;
  const type=$("providerRuleType"),count=$("providerRuleCount");
  const update=()=>{providerRule.type=type.value;providerRule.count=Math.max(0,Math.floor(Number(count.value)||0));count.value=providerRule.count;renderProviderStats()};
@@ -130,12 +133,14 @@ function renderProblemStats(rows){
 }
 function renderProviderStats(){
  if(!currentAnalysis)return;
- const stats=VoiceExperimentAnalysis.providerStats(currentAnalysis.rawRows,providerRule);
+ const providerPronunciation=VoiceExperimentAnalysis.providerPronunciationStats(currentAnalysis.rawRows,providerRule);
+ const providerSummary=VoiceExperimentAnalysis.providerStats(currentAnalysis.rawRows,providerRule);
  const sample=currentAnalysis.rawRows.find(r=>r.audio)?.audio||"";
  const provider=VoiceExperimentAnalysis.extractProvider(sample,providerRule)||"(빈 값)";
  const preview=$("providerRulePreview");
  if(preview)preview.innerHTML=sample?`예시: <b>${escapeHtml(sample)}</b> → 음성 제공자 <b>${escapeHtml(provider)}</b>`:"분석할 음성파일이 없습니다.";
- const box=$("providerStatsTable");if(box)box.innerHTML=tableHtml(providerHeaders,stats);
+ const pbox=$("providerPronunciationStatsTable");if(pbox)pbox.innerHTML=tableHtml(providerPronunciationHeaders,providerPronunciation);
+ const sbox=$("providerStatsTable");if(sbox)sbox.innerHTML=tableHtml(providerHeaders,providerSummary);
 }
 
 function renderPronunciationStats(rows){$("pronunciationTab").innerHTML=tableHtml([{key:"pronunciation",label:"정답 발음"},{key:"itemCount",label:"묶인 문항 수"},{key:"audioCount",label:"음성파일 수"},{key:"participants",label:"참가자"},{key:"responses",label:"전체 응답"},{key:"correct",label:"정답"},{key:"incorrect",label:"오답"},{key:"unrecognized",label:"인식 불가"},{key:"accuracy",label:"정답률(%)"},{key:"avgResponseTimeMs",label:"평균 응답시간(ms)"},{key:"replayTotal",label:"다시 듣기"},{key:"distribution",label:"응답 분포"}],rows)}

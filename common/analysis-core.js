@@ -272,5 +272,112 @@
     })).sort((a,b)=>String(a.provider).localeCompare(String(b.provider), undefined, {numeric:true}));
   }
 
-  window.VoiceExperimentAnalysis = { analyze, extractProvider, providerStats };
+
+  // 참가자 × 정답 발음별 통계
+  function participantPronunciationStats(rawRows) {
+    const acc = new Map();
+    for (const row of rawRows || []) {
+      const participantId = toStr(row.participantId) || "(참가자 없음)";
+      const pronunciation = toStr(row.answerLabel) || `(정답값 ${toStr(row.answerValue)})`;
+      const key = `${participantId}\u0000${pronunciation}`;
+      if (!acc.has(key)) {
+        acc.set(key, {
+          participantId, pronunciation,
+          itemIds:new Set(), audioFiles:new Set(), totalRows:0,
+          responses:0, correct:0, incorrect:0, unrecognized:0,
+          rtValues:[], replayTotal:0, distribution:{}
+        });
+      }
+      const g = acc.get(key);
+      g.totalRows++;
+      g.itemIds.add(toStr(row.itemId));
+      g.audioFiles.add(toStr(row.audio));
+      const answered = row.selectedValue != null && toStr(row.selectedValue) !== "";
+      if (answered) {
+        g.responses++;
+        if (Number(row.correct) === 1) g.correct++; else g.incorrect++;
+        if (Number(row.unrecognized) === 1) g.unrecognized++;
+        const label = toStr(row.selectedLabel) || "기타";
+        g.distribution[label] = (g.distribution[label] || 0) + 1;
+        const rt = Number(row.responseTimeMs);
+        if (Number.isFinite(rt) && rt >= 0) g.rtValues.push(rt);
+      }
+      const replay = Number(row.replayCount);
+      if (Number.isFinite(replay)) g.replayTotal += replay;
+    }
+    return [...acc.values()].map(g => ({
+      participantId:g.participantId,
+      pronunciation:g.pronunciation,
+      itemCount:g.itemIds.size,
+      audioCount:g.audioFiles.size,
+      responses:g.responses,
+      unanswered:Math.max(0, g.totalRows - g.responses),
+      correct:g.correct,
+      incorrect:g.incorrect,
+      unrecognized:g.unrecognized,
+      accuracy:g.responses ? round1(g.correct/g.responses*100) : 0,
+      avgResponseTimeMs:g.rtValues.length ? Math.round(g.rtValues.reduce((a,b)=>a+b,0)/g.rtValues.length) : "",
+      replayTotal:g.replayTotal,
+      distribution:Object.entries(g.distribution).map(([k,v])=>`${k}: ${v}`).join(" / ")
+    })).sort((a,b)=>{
+      const p = String(a.participantId).localeCompare(String(b.participantId), undefined, {numeric:true});
+      return p || String(a.pronunciation).localeCompare(String(b.pronunciation), undefined, {numeric:true});
+    });
+  }
+
+  // 음성 제공자 × 정답 발음별 통계
+  function providerPronunciationStats(rawRows, rule={type:"prefix", count:3}) {
+    const acc = new Map();
+    for (const row of rawRows || []) {
+      const provider = extractProvider(row.audio, rule) || "(빈 값)";
+      const pronunciation = toStr(row.answerLabel) || `(정답값 ${toStr(row.answerValue)})`;
+      const key = `${provider}\u0000${pronunciation}`;
+      if (!acc.has(key)) {
+        acc.set(key, {
+          provider, pronunciation,
+          participants:new Set(), itemIds:new Set(), audioFiles:new Set(), totalRows:0,
+          responses:0, correct:0, incorrect:0, unrecognized:0,
+          rtValues:[], replayTotal:0, distribution:{}
+        });
+      }
+      const g = acc.get(key);
+      g.totalRows++;
+      g.participants.add(toStr(row.participantId));
+      g.itemIds.add(toStr(row.itemId));
+      g.audioFiles.add(toStr(row.audio));
+      const answered = row.selectedValue != null && toStr(row.selectedValue) !== "";
+      if (answered) {
+        g.responses++;
+        if (Number(row.correct) === 1) g.correct++; else g.incorrect++;
+        if (Number(row.unrecognized) === 1) g.unrecognized++;
+        const label = toStr(row.selectedLabel) || "기타";
+        g.distribution[label] = (g.distribution[label] || 0) + 1;
+        const rt = Number(row.responseTimeMs);
+        if (Number.isFinite(rt) && rt >= 0) g.rtValues.push(rt);
+      }
+      const replay = Number(row.replayCount);
+      if (Number.isFinite(replay)) g.replayTotal += replay;
+    }
+    return [...acc.values()].map(g => ({
+      provider:g.provider,
+      pronunciation:g.pronunciation,
+      itemCount:g.itemIds.size,
+      audioCount:g.audioFiles.size,
+      participants:g.participants.size,
+      responses:g.responses,
+      unanswered:Math.max(0, g.totalRows - g.responses),
+      correct:g.correct,
+      incorrect:g.incorrect,
+      unrecognized:g.unrecognized,
+      accuracy:g.responses ? round1(g.correct/g.responses*100) : 0,
+      avgResponseTimeMs:g.rtValues.length ? Math.round(g.rtValues.reduce((a,b)=>a+b,0)/g.rtValues.length) : "",
+      replayTotal:g.replayTotal,
+      distribution:Object.entries(g.distribution).map(([k,v])=>`${k}: ${v}`).join(" / ")
+    })).sort((a,b)=>{
+      const p = String(a.provider).localeCompare(String(b.provider), undefined, {numeric:true});
+      return p || String(a.pronunciation).localeCompare(String(b.pronunciation), undefined, {numeric:true});
+    });
+  }
+
+  window.VoiceExperimentAnalysis = { analyze, extractProvider, providerStats, participantPronunciationStats, providerPronunciationStats };
 })();
