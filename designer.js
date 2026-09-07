@@ -24,22 +24,24 @@ async function indexHandle(handle,prefix=""){
 }
 async function openProjectFolder(){
  files.clear();basenames.clear();allProjectFiles=[];projectDirHandle=null;
- if(window.showDirectoryPicker&&window.isSecureContext){try{projectDirHandle=await window.showDirectoryPicker({mode:"readwrite"});await indexHandle(projectDirHandle);await finishProjectRead()}catch(e){if(e.name!=="AbortError")setProjectStatus(`프로젝트 폴더를 열 수 없습니다: ${escapeHtml(e.message)}`,"error")}}
+ if(window.showDirectoryPicker&&window.isSecureContext){try{projectDirHandle=await window.showDirectoryPicker({mode:"readwrite"});await indexHandle(projectDirHandle);await finishProjectRead(projectDirHandle.name)}catch(e){if(e.name!=="AbortError")setProjectStatus(`프로젝트 폴더를 열 수 없습니다: ${escapeHtml(e.message)}`,"error")}}
  else{$("fallbackProjectFolder").value="";$("fallbackProjectFolder").click()}
 }
 $("fallbackProjectFolder").onchange=async e=>{
  files.clear();basenames.clear();allProjectFiles=[];projectDirHandle=null;
+ const first=e.target.files?.[0];
+ const folderName=first?(first.webkitRelativePath||first.name).replaceAll("\\","/").split("/")[0]:"";
  for(const f of e.target.files){const rel=(f.webkitRelativePath||f.name).replaceAll("\\","/").split("/").slice(1).join("/")||f.name;allProjectFiles.push({rel,file:f});if(audioExt(f.name)){files.set(norm(rel),f);const b=bn(rel);if(!basenames.has(b))basenames.set(b,[]);basenames.get(b).push(f)}}
- await finishProjectRead();
+ await finishProjectRead(folderName);
 };
 function setProjectStatus(html,kind=""){$("projectStatus").className=`notice ${kind}`;$("projectStatus").innerHTML=html;$("projectStatus").classList.remove("hidden")}
-async function finishProjectRead(){
+async function finishProjectRead(folderName=""){
  const masters=allProjectFiles.filter(x=>/_master\.json$/i.test(x.file.name));
  if(masters.length>1){setProjectStatus(`master JSON이 ${masters.length}개 있습니다. 프로젝트 폴더에는 하나만 두는 것을 권장합니다.`,"error");return}
  if(masters.length===1){
-  try{const m=JSON.parse(await masters[0].file.text());loadMaster(m);const missing=items.filter(x=>!resolveFile(x.audio));setProjectStatus(`✓ 기존 프로젝트 <b>${escapeHtml(m.experimentId)}</b>를 열었습니다.<br>✓ 문항 ${items.length}개 · 음성 ${files.size}개${missing.length?`<br>⚠ 찾지 못한 음성 ${missing.length}개`:""}`,missing.length?"error":"ok")}catch(e){setProjectStatus(`master JSON을 읽을 수 없습니다: ${escapeHtml(e.message)}`,"error")}
+  try{const m=JSON.parse(await masters[0].file.text());loadMaster(m);const missing=items.filter(x=>!resolveFile(x.audio));setProjectStatus(`✓ 기존 프로젝트 <b>${escapeHtml(m.experimentId)}</b>를 열었습니다.<br>✓ 문항 ${items.length}개 · 음성 ${files.size}개${missing.length?`<br>⚠ 찾지 못한 음성 ${missing.length}개`:""}`,missing.length?"error":"ok");if(!missing.length)window.ParanUsage?.projectOpen?.("designer")}catch(e){setProjectStatus(`master JSON을 읽을 수 없습니다: ${escapeHtml(e.message)}`,"error")}
  }else{
-  const names=[...files.keys()].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));const labels=parseOptionLabels($("defaultOptions").value);items=names.map((name,i)=>({id:`item_${String(i+1).padStart(4,"0")}`,audio:name,options:labelsToOptions(labels),answer:""}));renderItems();setProjectStatus(`✓ 새 프로젝트 폴더를 열었습니다.<br>✓ 음성파일 ${items.length}개를 읽었습니다. 정답을 지정한 뒤 <b>실험 저장</b>을 누르세요.`,"ok")
+  const names=[...files.keys()].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));const labels=parseOptionLabels($("defaultOptions").value);items=names.map((name,i)=>({id:`item_${String(i+1).padStart(4,"0")}`,audio:name,options:labelsToOptions(labels),answer:""}));renderItems();setProjectStatus(`✓ 새 프로젝트 폴더를 열었습니다.<br>✓ 음성파일 ${items.length}개를 읽었습니다. 정답을 지정한 뒤 <b>실험 저장</b>을 누르세요.`,"ok");window.ParanUsage?.projectOpen?.("designer")
  }
 }
 function loadMaster(m){
