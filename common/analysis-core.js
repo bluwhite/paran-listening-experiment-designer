@@ -209,5 +209,68 @@
     return {warnings, acceptedCount:accepted.length, participantStats, problemStats, pronunciationStats, rawRows, overallAccuracy};
   }
 
-  window.VoiceExperimentAnalysis = { analyze };
+
+  // 음성파일명에서 음성 제공자 ID를 추출한다.
+  // rule.type: "prefix" = 확장자 제외 후 앞 N글자
+  //            "trimSuffix" = 확장자 제외 후 뒤 N글자를 제거한 나머지
+  function extractProvider(audio, rule={type:"prefix", count:3}) {
+    const fileName = toStr(audio).replaceAll("\\", "/").split("/").pop() || "";
+    const dot = fileName.lastIndexOf(".");
+    const stem = dot > 0 ? fileName.slice(0, dot) : fileName;
+    const chars = Array.from(stem);
+    const n = Math.max(0, Math.floor(Number(rule?.count) || 0));
+    if (rule?.type === "trimSuffix") {
+      return chars.slice(0, Math.max(0, chars.length - n)).join("");
+    }
+    return chars.slice(0, n || chars.length).join("");
+  }
+
+  function providerStats(rawRows, rule={type:"prefix", count:3}) {
+    const acc = new Map();
+    for (const row of rawRows || []) {
+      const provider = extractProvider(row.audio, rule) || "(빈 값)";
+      if (!acc.has(provider)) {
+        acc.set(provider, {
+          provider,
+          participants:new Set(), itemIds:new Set(), audioFiles:new Set(),
+          responses:0, correct:0, incorrect:0, unrecognized:0,
+          rtValues:[], replayTotal:0, distribution:{}
+        });
+      }
+      const g = acc.get(provider);
+      g.participants.add(toStr(row.participantId));
+      g.itemIds.add(toStr(row.itemId));
+      g.audioFiles.add(toStr(row.audio));
+
+      const answered = row.selectedValue != null && toStr(row.selectedValue) !== "";
+      if (answered) {
+        g.responses++;
+        if (Number(row.correct) === 1) g.correct++; else g.incorrect++;
+        if (Number(row.unrecognized) === 1) g.unrecognized++;
+        const label = toStr(row.selectedLabel) || "기타";
+        g.distribution[label] = (g.distribution[label] || 0) + 1;
+      }
+      const rt = Number(row.responseTimeMs);
+      if (answered && Number.isFinite(rt) && rt >= 0) g.rtValues.push(rt);
+      const replay = Number(row.replayCount);
+      if (Number.isFinite(replay)) g.replayTotal += replay;
+    }
+
+    return [...acc.values()].map(g => ({
+      provider:g.provider,
+      itemCount:g.itemIds.size,
+      audioCount:g.audioFiles.size,
+      participants:g.participants.size,
+      responses:g.responses,
+      correct:g.correct,
+      incorrect:g.incorrect,
+      unrecognized:g.unrecognized,
+      accuracy:g.responses ? round1(g.correct/g.responses*100) : 0,
+      avgResponseTimeMs:g.rtValues.length ? Math.round(g.rtValues.reduce((a,b)=>a+b,0)/g.rtValues.length) : "",
+      replayTotal:g.replayTotal,
+      distribution:Object.entries(g.distribution).map(([k,v])=>`${k}: ${v}`).join(" / ")
+    })).sort((a,b)=>String(a.provider).localeCompare(String(b.provider), undefined, {numeric:true}));
+  }
+
+  window.VoiceExperimentAnalysis = { analyze, extractProvider, providerStats };
 })();
